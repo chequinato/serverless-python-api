@@ -130,5 +130,49 @@ def fetch_live_rates(api_key: str, base_currency: str) -> ExchangeRates:
 
 # API 2 - Open Exchange Rates (histórico)
 
+BASE_URL_OXR =  "https://openexchangerates.org/api"
 
+def fetch_historical_rates(
+        app_id: str,
+        target_date: Optional[date] = None,
+        base_currency: str = "USD",
+) -> ExchangeRates:
+    """
+       Busca taxas históricas de 1 dia atrás via Open Exchange Rates.
 
+       Endpoint: GET /historical/{date}.json?app_id={key}&base={base}
+       Nota: no plano gratuito a base é sempre USD. Para outras bases,
+             fazemos a conversão manualmente (divisão das taxas).
+
+       Rate limit plano gratuito: 1.000 req/mês
+       """
+    if target_date is None:
+        target_date = date.today() - timedelta(days=1)
+        params = urllib.parse.urlencode({"app_id": app_id, "base": "USD"})
+        url = f"{BASE_URL_OXR}/historical/{target_date}.json?{params}"
+
+        logger.info(f"[Open Exchange Rates] Buscando histórico para {date_str}")
+
+        data = _http_get(url)
+        rates_raw = data.get("rates", {})
+
+        # Se a base solicitada não for USD, rebase manualmente
+        if base_currency.upper() != "USD":
+            base_rate = rates_raw.get(base_currency.upper())
+            if base_rate and base_rate != 0:
+                rates_raw = {
+                    currency: round(rate / base_rate, 6)
+                    for currency, rate in rates_raw.items()
+                }
+            else:
+                logger.warning(
+                    f"Não foi possível fazer rebase para {base_currency}. "
+                    "Retornando com base USD."
+                )
+
+        return ExchangeRates(
+            base=base_currency.upper(),
+            date=date_str,
+            source="Open Exchange Rates (historical)",
+            rates=rates_raw,
+        )
