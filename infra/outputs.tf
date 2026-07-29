@@ -1,7 +1,7 @@
 
 output "lambda_arn" {
   description = "ARN da Lambda"
-  value       = "aws_lambda_function.fx_processor.arn"
+  value       = aws_lambda_function.fx_processor.arn
 }
 
 output "bucket_name" {
