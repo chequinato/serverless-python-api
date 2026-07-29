@@ -6,26 +6,29 @@ from processor import calculate_variation
 class TestCalculateVariation(unittest.TestCase):
 
     def test_subida(self):
-        # seu código aqui com 8 espaços
+        pct, direction = calculate_variation(110.0, 100.0)
+        self.assertEqual(pct, 10)
+        self.assertEqual(direction, "up")
 
     def test_descida(self):
-        # seu código aqui com 8 espaços
+        pct, direction = calculate_variation(100.0, 110.0)
+        self.assertEqual(pct, -10)
+        self.assertEqual(direction, "down")
 
     def test_stable(self):
-        # seu código aqui com 8 espaços
+        pct, direction = calculate_variation(100.0, 100.0)
+        self.assertEqual(pct, 0)
+        self.assertEqual(direction, "stable")
 
     def test_divisao_por_zero(self):
-        # seu código aqui com 8 espaços
+        pct, direction = calculate_variation(100.0, 0)
+        self.assertEqual(pct, 0.0)
+        self.assertEqual(direction, "stable")
 
-if __name__ == "__main__":
-    unittest.main()
 
 # Teste da função compare_rates()
 
 class TestCompareRates(unittest.TestCase):
-
-    def setUp(self):
-        # monta os dois ExchangeRates fictícios aqui
 
     def test_moeda_ausente(self):
         # chama compare_rates
@@ -39,3 +42,7 @@ class TestCompareRates(unittest.TestCase):
     def test_ordenacao(self):
         # chama compare_rates
         # verifica que a primeira moeda tem maior variação absoluta
+
+
+if __name__ == "__main__":
+    unittest.main()
