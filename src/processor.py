@@ -16,9 +16,9 @@ Conceitos Python exercitados:
 import logging
 from dataclasses import dataclass
 from datetime import datetime, timezone
-from email.policy import default
 from typing import Dict, List, Optional, Tuple
 from api_client import ExchangeRates, DEFAULT_CURRENCIES
+from dataclasses import dataclass, field
 
 logger = logging.getLogger(__name__)
 
@@ -111,3 +111,37 @@ def compare_rates(
     for currency in currencies:
         rate_now = live.get_rate(currency)
         rate_prev = historical.get_rate(currency)
+
+        if rate_now is None or rate_prev is None:
+            continue
+
+        pct, direction = calculate_variation(rate_now, rate_prev)
+
+        is_alert = abs(pct) >= ALERT_THRESHOLD
+
+        variations.append(CurrencyVariation(currency=currency, rate_now=rate_now, rate_prev=rate_prev, variation_pct=pct, direction=direction, alert=is_alert))
+
+    return sorted(variations, key=lambda v: abs(v.variation_pct), reverse=True)
+
+def build_summary(variations) -> dict:
+
+    maior_alta = max(variations, key=lambda v: v.variation_pct)
+    maior_baixa = min(variations, key=lambda v: v.variation_pct)
+    total_subindo = len([v for v in variations if v.direction == "up"])
+    total_caindo = len([v for v in variations if v.direction == "down"])
+    total_stable = len([v for v in variations if v.direction == "stable"])
+
+    return {
+        "maior_alta": {"currency": maior_alta.currency, "pct": maior_alta.variation_pct},
+        "maior_baixa": {"currency": maior_baixa.currency, "pct": maior_baixa.variation_pct},
+        "total_subindo": total_subindo,
+        "total_caindo": total_caindo,
+        "total_stable": total_stable,
+    }
+
+def process(live, historical):
+
+    variations = compare_rates(live, historical)
+    summary = build_summary(variations)
+
+    fx_report = FXReport()
