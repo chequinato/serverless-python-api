@@ -23,8 +23,6 @@ import urllib.request
 import urllib.parse
 import urllib.error
 from dataclasses import dataclass, field
-from email.quoprimime import decode
-from unittest.mock import DEFAULT
 from datetime import date, timedelta
 from typing import Dict, Optional
 
@@ -115,7 +113,7 @@ def fetch_live_rates(api_key: str, base_currency: str) -> ExchangeRates:
     logger.info(f"[ExchangeRate-API] Buscando taxas ao vivo para base={base_currency}")
 
     data = _http_get(url)
-    if data.get("result") != "sucess":
+    if data.get("result") != "success":
         error_type = data.get("error-type", "unknown")
         raise APIError(f"ExchangeRate-API retornou erro: {error_type}")
 
@@ -123,7 +121,7 @@ def fetch_live_rates(api_key: str, base_currency: str) -> ExchangeRates:
 
     return ExchangeRates(
         base=data["base_code"],
-        date=data.get["times_last_updated_utc", "unknown"],
+        date=data.get("times_last_updated_utc", "unknown"),
         source="ExchangeRate-API (live)",
         rates=rates_raw,
     )
@@ -148,31 +146,34 @@ def fetch_historical_rates(
        """
     if target_date is None:
         target_date = date.today() - timedelta(days=1)
-        params = urllib.parse.urlencode({"app_id": app_id, "base": "USD"})
-        url = f"{BASE_URL_OXR}/historical/{target_date}.json?{params}"
 
-        logger.info(f"[Open Exchange Rates] Buscando histórico para {date_str}")
+    date_str = target_date.strftime("%Y-%m-%d")
 
-        data = _http_get(url)
-        rates_raw = data.get("rates", {})
+    params = urllib.parse.urlencode({"app_id": app_id, "base": "USD"})
+    url = f"{BASE_URL_OXR}/historical/{target_date}.json?{params}"
 
-        # Se a base solicitada não for USD, rebase manualmente
-        if base_currency.upper() != "USD":
-            base_rate = rates_raw.get(base_currency.upper())
-            if base_rate and base_rate != 0:
-                rates_raw = {
-                    currency: round(rate / base_rate, 6)
-                    for currency, rate in rates_raw.items()
-                }
-            else:
-                logger.warning(
-                    f"Não foi possível fazer rebase para {base_currency}. "
-                    "Retornando com base USD."
-                )
+    logger.info(f"[Open Exchange Rates] Buscando histórico para {date_str}")
 
-        return ExchangeRates(
-            base=base_currency.upper(),
-            date=date_str,
-            source="Open Exchange Rates (historical)",
-            rates=rates_raw,
-        )
+    data = _http_get(url)
+    rates_raw = data.get("rates", {})
+
+     # Se a base solicitada não for USD, rebase manualmente
+    if base_currency.upper() != "USD":
+        base_rate = rates_raw.get(base_currency.upper())
+        if base_rate and base_rate != 0:
+            rates_raw = {
+                currency: round(rate / base_rate, 6)
+                for currency, rate in rates_raw.items()
+            }
+        else:
+            logger.warning(
+                f"Não foi possível fazer rebase para {base_currency}. "
+                "Retornando com base USD."
+            )
+
+    return ExchangeRates(
+        base=base_currency.upper(),
+        date=date_str,
+        source="Open Exchange Rates (historical)",
+        rates=rates_raw,
+    )
