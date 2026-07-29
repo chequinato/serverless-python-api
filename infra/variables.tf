@@ -27,3 +27,9 @@ variable "environment" {
   type        = string
   default     = "dev"
 }
+
+variable "base_currency" {
+  description = "Moeda base usada para buscar as cotações"
+  type        = string
+  default     = "USD"
+}

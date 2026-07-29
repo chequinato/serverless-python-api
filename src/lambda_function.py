@@ -33,6 +33,9 @@ from src.storage import save_local, upload_s3, to_json, path_s3
 # Detecta se está rodando na AWS ou localmente
 IS_AWS = bool(os.environ.get("AWS_EXECUTION_ENV"))
 
+# Moeda base usada nas duas APIs (configurável por variável de ambiente)
+BASE_CURRENCY = os.environ.get("FX_BASE_CURRENCY", "USD")
+
 
 def _response(status_code: int, body: dict) -> dict:
     """
@@ -75,7 +78,7 @@ def lambda_handler(event, context):
     # ── Passo 2: Buscar taxas em tempo real ───────────────────────
     # Chama a ExchangeRate-API com a chave obtida no passo 1.
     try:
-        live_rates = fetch_live_rates(api_key)
+        live_rates = fetch_live_rates(api_key, base_currency=BASE_CURRENCY)
     except APIAuthError as e:
         return _response(401, {"error": str(e)})
     except APIRateLimitError as e:
@@ -86,7 +89,7 @@ def lambda_handler(event, context):
     # ── Passo 3: Buscar taxas históricas (D-1) ────────────────────
     # Chama a Open Exchange Rates para obter as taxas do dia anterior.
     try:
-        historical_rates = fetch_historical_rates(api_key)
+        historical_rates = fetch_historical_rates(api_key, base_currency=BASE_CURRENCY)
     except APIAuthError as e:
         return _response(401, {"error": str(e)})
     except APIRateLimitError as e:

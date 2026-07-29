@@ -72,6 +72,7 @@ resource "aws_lambda_function" "fx_processor" {
       FX_KMS_KEY_ID  = aws_kms_key.fx_cmk.arn
       SECRET_NAME    = var.secret_name
       AWS_REGION     = "us-east-1"
+      FX_BASE_CURRENCY = var.base_currency
     }
   }
 }
