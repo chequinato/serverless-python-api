@@ -29,6 +29,7 @@ from src.api_client import fetch_live_rates, fetch_historical_rates
 from src.api_client import APIError, APIRateLimitError, APIAuthError
 from src.processor import process
 from src.storage import save_local, upload_s3, to_json, path_s3
+from src.trends import analyze_trends
 
 # Detecta se está rodando na AWS ou localmente
 IS_AWS = bool(os.environ.get("AWS_EXECUTION_ENV"))
@@ -104,10 +105,33 @@ def lambda_handler(event, context):
     except RuntimeError as e:
         return _response(500, {"error": str(e)})
 
-    # ── Passo 5: Salvar o relatório ───────────────────────────────
+    # ── Passo 5: Análise de tendência multi-day ─────────────────────
+    # Busca relatórios anteriores e calcula streaks, médias móveis e
+    # volatilidade acumulada. Não bloqueia se falhar — só loga.
+    trends = None
+    try:
+        trends = analyze_trends(
+            days=7,
+            base_currency=BASE_CURRENCY,
+        )
+        if trends and trends.get("reports_found", 0) > 0:
+            logging.info(
+                f"Tendências: {len(trends.get('highlights', []))} destaques "
+                f"em {trends['reports_found']} dias de histórico"
+            )
+    except Exception as e:
+        logging.warning(f"Análise de tendência falhou (não-fatal): {e}")
+
+    # ── Passo 6: Salvar o relatório ───────────────────────────────
     # Em produção: sobe pro S3 com SSE-KMS.
     # Localmente: salva em arquivo JSON na pasta output/.
-    json_str = to_json(report.to_dict())
+    report_dict = report.to_dict()
+
+    # Anexa tendências ao relatório quando disponíveis
+    if trends and trends.get("reports_found", 0) > 0:
+        report_dict["trends"] = trends
+
+    json_str = to_json(report_dict)
     key = path_s3(report.base_currency, report.generated_at)
 
     if IS_AWS:
@@ -119,4 +143,8 @@ def lambda_handler(event, context):
     else:
         save_local(json_str)
 
-    return _response(200, {"message": "ok", "alerts": report.alerts})
+    return _response(200, {
+        "message": "ok",
+        "alerts": report.alerts,
+        "trends_available": trends is not None and trends.get("reports_found", 0) > 0,
+    })
