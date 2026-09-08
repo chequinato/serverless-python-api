@@ -65,10 +65,11 @@ class FXReport:
     variations:          List[CurrencyVariation] = field(default_factory=list)
     alerts:              List[str]               = field(default_factory=list)
     summary:             Dict                    = field(default_factory=dict)
+    analytics:           Optional[Dict]          = None  # preenchido pelo módulo analytics
 
     def to_dict(self) -> dict:
         """Serializa para dicionário — usado antes do upload S3."""
-        return {
+        result = {
             "base_currency":       self.base_currency,
             "generated_at":        self.generated_at,
             "live_date":           self.live_date,
@@ -78,6 +79,9 @@ class FXReport:
             "alerts":              self.alerts,
             "summary":             self.summary,
         }
+        if self.analytics is not None:
+            result["analytics"] = self.analytics
+        return result
 
 
 # ── Funções de cálculo ────────────────────────────────────────────

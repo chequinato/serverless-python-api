@@ -29,6 +29,7 @@ from src.api_client import fetch_live_rates, fetch_historical_rates
 from src.api_client import APIError, APIRateLimitError, APIAuthError
 from src.processor import process
 from src.storage import save_local, upload_s3, to_json, path_s3
+from src.analytics import analyze
 from src.trends import analyze_trends
 
 # Detecta se está rodando na AWS ou localmente
@@ -105,6 +106,16 @@ def lambda_handler(event, context):
     except RuntimeError as e:
         return _response(500, {"error": str(e)})
 
+    # ── Passo 4b: Enriquecer com analytics avançado ─────────────
+    # Adiciona classificação de risco, anomalias, sentimento de mercado
+    # e matriz de cross-rates ao relatório.
+    try:
+        analytics_data = analyze(report, live_rates)
+        report.analytics = analytics_data
+    except Exception as e:
+        # Analytics é enriquecimento — falha não cancela o fluxo
+        logging.warning(f"Analytics não pôde ser gerado: {e}")
+
     # ── Passo 5: Análise de tendência multi-day ─────────────────────
     # Busca relatórios anteriores e calcula streaks, médias móveis e
     # volatilidade acumulada. Não bloqueia se falhar — só loga.
@@ -143,8 +154,13 @@ def lambda_handler(event, context):
     else:
         save_local(json_str)
 
-    return _response(200, {
+    response_body = {
         "message": "ok",
         "alerts": report.alerts,
         "trends_available": trends is not None and trends.get("reports_found", 0) > 0,
-    })
+    }
+    if report.analytics:
+        response_body["market_sentiment"] = report.analytics.get("market_sentiment", {}).get("sentiment", "UNKNOWN")
+        response_body["anomalies_count"] = len(report.analytics.get("anomalies", []))
+
+    return _response(200, response_body)
