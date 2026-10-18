@@ -60,18 +60,30 @@ data "archive_file" "lambda_zip" {
 }
 
 resource "aws_lambda_function" "fx_processor" {
-  filename      = data.archive_file.lambda_zip.output_path
+  filename = data.archive_file.lambda_zip.output_path
+
+  # Sem o source_code_hash o Terraform não percebe mudança no código Python
+  # e a Lambda continua rodando a versão antiga depois do apply. Importa mais
+  # agora que as duas Lambdas (processamento e consulta) saem do mesmo .zip:
+  # sem isso uma atualizaria e a outra não.
+  source_code_hash = data.archive_file.lambda_zip.output_base64sha256
+
   function_name = var.lambda_name
   role          = aws_iam_role.fx_lambda_role.arn
   handler       = "lambda_function.lambda_handler"
   runtime       = "python3.12"
 
+  # AWS_REGION não entra aqui: é variável reservada da Lambda e o apply
+  # falha com InvalidParameterValueException se ela for declarada. A AWS já
+  # injeta AWS_REGION em tempo de execução, então o secrets.py continua
+  # encontrando a região normalmente.
   environment {
     variables = {
-      FX_BUCKET_NAME = var.bucket_name
-      FX_KMS_KEY_ID  = aws_kms_key.fx_cmk.arn
-      SECRET_NAME    = var.secret_name
-      AWS_REGION     = "us-east-1"
+      # Nome do bucket real, com o sufixo de ambiente. Usar var.bucket_name
+      # cru aqui fazia o storage.py gravar num bucket inexistente.
+      FX_BUCKET_NAME   = aws_s3_bucket.fx_reports.bucket
+      FX_KMS_KEY_ID    = aws_kms_key.fx_cmk.arn
+      SECRET_NAME      = var.secret_name
       FX_BASE_CURRENCY = var.base_currency
     }
   }

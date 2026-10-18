@@ -28,3 +28,31 @@ output "lambda_role_arn" {
   description = "ARN da IAM Role da Lambda"
   value       = aws_iam_role.fx_lambda_role.arn
 }
+
+# ── API de consulta ───────────────────────────────────────────────
+
+output "api_base_url" {
+  description = "URL base da API de consulta — cole no navegador ou no curl"
+  value       = aws_apigatewayv2_stage.fx_api_stage.invoke_url
+}
+
+output "api_endpoints" {
+  description = "Endpoints disponíveis na API de consulta"
+  value = [
+    "GET ${aws_apigatewayv2_stage.fx_api_stage.invoke_url}/health",
+    "GET ${aws_apigatewayv2_stage.fx_api_stage.invoke_url}/reports/latest",
+    "GET ${aws_apigatewayv2_stage.fx_api_stage.invoke_url}/reports/latest?currency=BRL",
+    "GET ${aws_apigatewayv2_stage.fx_api_stage.invoke_url}/alerts",
+    "GET ${aws_apigatewayv2_stage.fx_api_stage.invoke_url}/trends?days=7",
+  ]
+}
+
+output "query_lambda_arn" {
+  description = "ARN da Lambda de consulta"
+  value       = aws_lambda_function.fx_query_api.arn
+}
+
+output "query_lambda_role_arn" {
+  description = "ARN da IAM Role somente leitura da Lambda de consulta"
+  value       = aws_iam_role.fx_query_role.arn
+}
